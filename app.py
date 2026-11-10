@@ -1,5 +1,7 @@
+import os
 import io
 import cv2
+import gdown
 import numpy as np
 from PIL import Image
 import qrcode
@@ -45,11 +47,10 @@ CLASS_COLORS = {
     'thoi_nhun': (0, 215, 255)   # Vàng
 }
 
-# --- 3. TẢI MÔ HÌNH YOLOV11 ---
+# --- 3. TẢI MÔ HÌNH YOLOV11 (TỰ ĐỘNG TẢI TỪ GOOGLE DRIVE NẾU THIẾU) ---
 @st.cache_resource
 def load_model():
     model_path = "best.pt"
-    # Nếu file chưa tồn tại trên máy chủ Streamlit, tự động tải từ Drive về
     if not os.path.exists(model_path):
         file_id = "1Pa6V_-ZJd-wIw0_iNyez77SK-WwMyQ8t"
         url = f"https://drive.google.com/uc?id={file_id}"
@@ -95,7 +96,6 @@ if uploaded_file is not None:
             img_array_rgb = np.array(image)
             img_array_bgr = cv2.cvtColor(img_array_rgb, cv2.COLOR_RGB2BGR)
             
-            # Ngưỡng conf=0.35 loại bỏ nhiễu mờ
             CONF_THRESHOLD = 0.35
             results = model.predict(img_array_bgr, conf=CONF_THRESHOLD, iou=0.45)
             result = results[0]
@@ -109,10 +109,9 @@ if uploaded_file is not None:
                 annotated_img = img_array_bgr.copy()
                 detected_labels = []
 
-                # TÙY CHỈNH KÍCH THƯỚC CHỮ VÀ VIỀN
-                FONT_SCALE = 1.0       # Tăng từ 0.6 lên 1.0 để chữ to rõ hơn
-                FONT_THICKNESS = 2   # Độ đậm của chữ
-                BOX_THICKNESS = 3    # Độ dày khung bao (tăng cho cân đối với chữ)
+                FONT_SCALE = 1.0       # Kích thước chữ to nét cho di động
+                FONT_THICKNESS = 2   # Độ đậm nét chữ
+                BOX_THICKNESS = 3    # Độ dày khung hình chữ nhật
 
                 for box in result.boxes:
                     conf = float(box.conf[0].cpu().numpy())
@@ -126,23 +125,20 @@ if uploaded_file is not None:
 
                     detected_labels.append(vn_label)
 
-                    # Tọa độ khung chữ nhật
                     xyxy = box.xyxy[0].cpu().numpy().astype(int)
                     x1, y1, x2, y2 = xyxy
 
-                    # 1. Vẽ khung Bounding Box
+                    # 1. Chỉ vẽ duy nhất khung hình chữ nhật Bounding Box
                     cv2.rectangle(annotated_img, (x1, y1), (x2, y2), color, BOX_THICKNESS)
 
-                    # 2. Nội dung & Tính toán kích thước ô nền cho chữ TO
+                    # 2. Nội dung & Tính toán khối nền chữ
                     label_text = f"{vn_label} {conf:.2f}"
                     (w, h), baseline = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, FONT_SCALE, FONT_THICKNESS)
                     
-                    # Đảm bảo khối nhãn không bị tràn ra ngoài cạnh trên của ảnh
                     text_y = y1 - 10 if (y1 - h - 15) > 0 else y1 + h + 10
                     rect_y1 = y1 - h - 15 if (y1 - h - 15) > 0 else y1
                     rect_y2 = y1 if (y1 - h - 15) > 0 else y1 + h + 15
 
-                    # Vẽ nền và chèn chữ kích thước lớn
                     cv2.rectangle(annotated_img, (x1, rect_y1), (x1 + w + 10, rect_y2), color, -1)
                     cv2.putText(
                         annotated_img, 
@@ -155,10 +151,7 @@ if uploaded_file is not None:
                         cv2.LINE_AA
                     )
 
-                # Lọc trùng lặp nhãn kết luận
                 unique_labels = list(dict.fromkeys(detected_labels))
-
-                # Chuyển BGR -> RGB để hiển thị Streamlit
                 res_rgb = cv2.cvtColor(annotated_img, cv2.COLOR_BGR2RGB)
                 
                 with col2:
@@ -167,7 +160,7 @@ if uploaded_file is not None:
                 
                 st.error(f"🚨 Phát hiện (các) bệnh: **{', '.join(unique_labels)}**")
                 
-                # --- 6. PHẦN TỰ ĐỘNG HIỂN THỊ THÔNG TIN & PHÁC ĐỒ ĐIỀU TRỊ ---
+                # --- 6. THÔNG TIN CHI TIẾT & PHÁC ĐỒ ĐIỀU TRỊ ---
                 st.markdown("---")
                 st.header("📋 THÔNG TIN CHI TIẾT & PHÁC ĐỒ ĐIỀU TRỊ")
                 
