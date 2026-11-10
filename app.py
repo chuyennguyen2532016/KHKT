@@ -20,7 +20,7 @@ st.set_page_config(
 
 st.title("🌿 Ứng dụng AI Chẩn Đoán Bệnh Thanh Long & Phác Đồ Điều Trị")
 st.write(
-    "Vui lòng tải lên hình ảnh cành/quả thanh long. Hệ thống sẽ tự động phân tích, "
+    "Vui lòng tải lên hình ảnh cành thanh long. Hệ thống sẽ tự động phân tích, "
     "khoanh vùng khung hình chữ nhật vết bệnh và cung cấp phác đồ điều trị chi tiết."
 )
 
